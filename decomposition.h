@@ -8,18 +8,26 @@ class Decomposition
 {
 public:
     Decomposition();
+    enum QRType{Givens,HouseHolder};
+    enum CholeskyType{CholeskyLLT,CholeskyLDLT};
     typedef Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, _Options> MatrixXXT;
+    typedef Eigen::Matrix<T, Eigen::Dynamic, 1, _Options> VectorXT;
     static MatrixXXT Gauss(const MatrixXXT&A);
     static MatrixXXT EijMatrix(int n,int i,int j);
     static MatrixXXT RijMatrix(int n,int i,int j,T cos,T sin);
     static MatrixXXT RijInverseMatrix(int n,int i,int j,T cos,T sin);
+    static MatrixXXT reflectionMatrix(VectorXT& a);
     static void lowerDiagonalInverse(const MatrixXXT&L,MatrixXXT&U);
+    static void upperDiagonalInverse(const MatrixXXT&L,MatrixXXT&U);
     static void sqrtDiagonal(const MatrixXXT&L,MatrixXXT&O);
     static void invertDiagonal(const MatrixXXT&L,MatrixXXT&O);
     static void LU(const MatrixXXT&A,MatrixXXT& L,MatrixXXT&U);
     static void GivensQR(const MatrixXXT&A,MatrixXXT& Q,MatrixXXT&R);
-    static void Cholesky(const MatrixXXT&A,MatrixXXT& L,MatrixXXT& D);
-    static void CholeskyInverse(const MatrixXXT&A,MatrixXXT& O);
+    static void HousholderQR(const MatrixXXT&A,MatrixXXT& Q,MatrixXXT&R);
+    static void LLT(const MatrixXXT&A,MatrixXXT& L);
+    static void LDLT(const MatrixXXT&A,MatrixXXT& L,MatrixXXT& D);
+    static void CholeskyInverse(const MatrixXXT&A,MatrixXXT& O,CholeskyType type=CholeskyLLT);
+    static void QRInverse(const MatrixXXT&A,MatrixXXT& O,QRType type=HouseHolder);
     static void CholeskyMulInverse(const MatrixXXT&A,MatrixXXT& O);
     static void lowerDiagonalTranposeMul(const MatrixXXT& U,MatrixXXT& O);
 };
@@ -143,6 +151,21 @@ typename Decomposition<T,_Options>::MatrixXXT Decomposition<T,_Options>::RijInve
 }
 
 template<typename T, int _Options>
+typename Decomposition<T,_Options>::MatrixXXT Decomposition<T,_Options>::reflectionMatrix(Decomposition::VectorXT &a)
+{
+    int n=a.rows();
+    VectorXT  e(n);
+    e.setZero();
+    e(0)=a.norm();
+    VectorXT w=a-e;
+    w.normalize();
+    MatrixXXT I(n,n);
+    I.setIdentity();
+    MatrixXXT H=I-2*w*w.transpose();
+    return H;
+}
+
+template<typename T, int _Options>
 void Decomposition<T,_Options>::lowerDiagonalInverse(const Decomposition::MatrixXXT &L, Decomposition::MatrixXXT &U)
 {
     if(L.rows()!=L.cols()){
@@ -166,6 +189,34 @@ void Decomposition<T,_Options>::lowerDiagonalInverse(const Decomposition::Matrix
             U(i-1,j-1)=temp/L(i-1,i-1);
         }
         U(i-1,i-1)=1/L(i-1,i-1);
+    }
+}
+
+template<typename T, int _Options>
+void Decomposition<T,_Options>::upperDiagonalInverse(const Decomposition::MatrixXXT &L, Decomposition::MatrixXXT &U)
+{
+    if(L.rows()!=L.cols()){
+        throw std::invalid_argument("not a squared matrix");
+    }
+    if(U.rows()!=L.rows()||U.cols()!=L.cols()){
+        U.resizeLike(L);
+    }
+    U.setZero();
+    int i,j,k;
+    int n=L.rows();
+    for(i=1;i<=n;i++){
+        if(L(i-1,i-1)==0){
+            throw std::invalid_argument("not a non-singular matrix");
+        }
+        U(i-1,i-1)=1/L(i-1,i-1);
+        for(j=i+1;j<=n;j++){
+            T temp=0;
+            for(k=i;k<=j-1;k++){
+                temp-=U(i-1,k-1)*L(k-1,j-1);
+            }
+            U(i-1,j-1)=temp/L(j-1,j-1);
+        }
+
     }
 }
 
@@ -276,9 +327,9 @@ void Decomposition<T,_Options>::GivensQR(const MatrixXXT &A, MatrixXXT &Q, Matri
             }
             //exchange
             MatrixXXT Eij=EijMatrix(n,i,k);
-            MatrixXXT Eji=EijMatrix(n,k,i);
+//            MatrixXXT Eji=EijMatrix(n,k,i);
             R=Eij*R;
-            Q*=Eji;
+            Q*=Eij;
         }
         for(j=i+1;j<=n;j++){
             T a_ii=R(i-1,i-1);
@@ -295,17 +346,76 @@ void Decomposition<T,_Options>::GivensQR(const MatrixXXT &A, MatrixXXT &Q, Matri
 }
 
 template<typename T, int _Options>
-void Decomposition<T,_Options>::CholeskyInverse(const Decomposition::MatrixXXT &A, Decomposition::MatrixXXT &O)
+void Decomposition<T,_Options>::HousholderQR(const Decomposition::MatrixXXT &A, Decomposition::MatrixXXT &Q, Decomposition::MatrixXXT &R)
 {
-    MatrixXXT L;
-    MatrixXXT D;
-    Cholesky(A,L,D);
-    MatrixXXT Dsqrt;
-    sqrtDiagonal(D,Dsqrt);
-    L*=Dsqrt;
-    MatrixXXT U;
-    lowerDiagonalInverse(L,U);
-    lowerDiagonalTranposeMul(U,O);
+    if(A.rows()!=A.cols()){
+        throw std::invalid_argument("not a squared matrix");
+    }
+    int n=A.rows();
+    R=A;
+    if(Q.rows()!=A.rows()||Q.cols()!=A.cols()){
+        Q.resizeLike(A);
+    }
+    Q.setIdentity();
+    MatrixXXT I(n,n);
+    I.setIdentity();
+    int i,j,k;
+    for(i=1;i<=n-1;i++){
+        VectorXT a=R.block(i-1,i-1,n-i+1,1);
+        MatrixXXT H=I;
+        MatrixXXT Hn=reflectionMatrix(a);
+        H.block(i-1,i-1,n-i+1,n-i+1)=Hn;
+        Q*=H.transpose();
+        R=H*R;
+        //R.block(i,i-1,n-i,1).setZero();
+    }
+    for(i=1;i<=n-1;i++){
+      R.block(i,i-1,n-i,1).setZero();
+    }
+}
+
+
+
+template<typename T, int _Options>
+void Decomposition<T,_Options>::CholeskyInverse(const Decomposition::MatrixXXT &A, Decomposition::MatrixXXT &O,CholeskyType type)
+{
+    if(type==CholeskyLLT){
+        MatrixXXT L;
+        LLT(A,L);
+        MatrixXXT U;
+        lowerDiagonalInverse(L,U);
+        lowerDiagonalTranposeMul(U,O);
+    }else if(type==CholeskyLDLT){
+        MatrixXXT L;
+        MatrixXXT D;
+        LDLT(A,L,D);
+        MatrixXXT Dsqrt;
+        sqrtDiagonal(D,Dsqrt);
+        L*=Dsqrt;
+        MatrixXXT U;
+        lowerDiagonalInverse(L,U);
+        lowerDiagonalTranposeMul(U,O);
+    }
+
+}
+
+template<typename T, int _Options>
+void Decomposition<T,_Options>::QRInverse(const Decomposition::MatrixXXT &A, Decomposition::MatrixXXT &O,QRType type)
+{
+    MatrixXXT Q;
+    MatrixXXT R;
+    if(type==HouseHolder){
+        HousholderQR(A,Q,R);
+    }else if(type==Givens){
+        GivensQR(A,Q,R);
+    }else{
+        throw std::invalid_argument("invalid QRType:use HouseHolder or Givens");
+    }
+
+
+    MatrixXXT Rinverse;
+    upperDiagonalInverse(R,Rinverse);
+    O=Rinverse*Q.transpose();
 }
 
 template<typename T, int _Options>
@@ -313,7 +423,7 @@ void Decomposition<T,_Options>::CholeskyMulInverse(const Decomposition::MatrixXX
 {
     MatrixXXT L;
     MatrixXXT D;
-    Cholesky(A,L,D);
+    LDLT(A,L,D);
     MatrixXXT Dinvert;
     invertDiagonal(D,Dinvert);
     MatrixXXT U;
@@ -343,9 +453,37 @@ void Decomposition<T,_Options>::lowerDiagonalTranposeMul(const Decomposition::Ma
         }
     }
 }
-
 template<typename T, int _Options>
-void Decomposition<T,_Options>::Cholesky(const MatrixXXT &A, Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, _Options> &L,MatrixXXT& D)
+void Decomposition<T,_Options>::LLT(const Decomposition::MatrixXXT &A, Decomposition::MatrixXXT &L)
+{
+    if(A.rows()!=A.cols()){
+        throw std::invalid_argument("not a squared matrix");
+    }
+    if(L.rows()!=A.rows()||L.cols()!=A.cols()){
+        L.resizeLike(A);
+    }
+    L.setZero();
+    T temp;
+    int n=A.rows();
+    int i,j,k;
+    for(i=1;i<=n;i++){
+
+        for(j=1;j<i;j++){
+            temp=0;
+            for(k=1;k<=j-1;k++){
+                temp+=L(i-1,k-1)*L(j-1,k-1);
+            }
+            L(i-1,j-1)=(A(i-1,j-1)-temp)/L(j-1,j-1);
+        }
+        temp=0;
+        for(k=1;k<=i-1;k++){
+            temp+=L(i-1,k-1)*L(i-1,k-1);
+        }
+        L(i-1,i-1)=std::sqrt(A(i-1,i-1)-temp);
+    }
+}
+template<typename T, int _Options>
+void Decomposition<T,_Options>::LDLT(const MatrixXXT &A, Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, _Options> &L,MatrixXXT& D)
 {
     if(A.rows()!=A.cols()){
         throw std::invalid_argument("not a squared matrix");
