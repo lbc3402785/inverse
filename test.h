@@ -14,6 +14,7 @@ public:
     static void testHousholderQR();
     static void testCholeskyInverse();
     static void testQRInverse();
+    static void test3x3Inverse();
 };
 
 #endif // TEST_H

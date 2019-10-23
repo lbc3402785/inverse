@@ -18,22 +18,22 @@ void Test::testGauss()
 
 void Test::testLU()
 {
-//    Eigen::Matrix<float,3,3> A=Eigen::Matrix<float,3,3>::Zero(3,3);
-//    A<<4,8,4,2,7,2,1,2,3;
-//    std::cout<<"A:"<<std::endl<<A<<std::endl;
-//    Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic> L;//=Eigen::Matrix<float,3,3>::Zero(3,3);
-//    Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic> U;//=Eigen::Matrix<float,3,3>::Zero(3,3);
-//    Decomposition<float,A.Options>::LU(A,L,U);
-//    std::cout<<"L:"<<std::endl<<L<<std::endl;
-//    std::cout<<"U:"<<std::endl<<U<<std::endl;
+    //    Eigen::Matrix<float,3,3> A=Eigen::Matrix<float,3,3>::Zero(3,3);
+    //    A<<4,8,4,2,7,2,1,2,3;
+    //    std::cout<<"A:"<<std::endl<<A<<std::endl;
+    //    Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic> L;//=Eigen::Matrix<float,3,3>::Zero(3,3);
+    //    Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic> U;//=Eigen::Matrix<float,3,3>::Zero(3,3);
+    //    Decomposition<float,A.Options>::LU(A,L,U);
+    //    std::cout<<"L:"<<std::endl<<L<<std::endl;
+    //    std::cout<<"U:"<<std::endl<<U<<std::endl;
     Eigen::Matrix<float,3,3> A=Eigen::Matrix<float,3,3>::Random(3,3);
     A=A.transpose()*A+0.1*Eigen::Matrix<float,3,3>::Identity();
     std::cout<<"A:"<<std::endl<<A<<std::endl;
     Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic> L;//=Eigen::Matrix<float,3,3>::Zero(3,3);
     Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic> U;//=Eigen::Matrix<float,3,3>::Zero(3,3);
     Decomposition<float,A.Options>::LU(A,L,U);
-//    std::cout<<"L:"<<std::endl<<L<<std::endl;
-//    std::cout<<"U:"<<std::endl<<U<<std::endl;
+    //    std::cout<<"L:"<<std::endl<<L<<std::endl;
+    //    std::cout<<"U:"<<std::endl<<U<<std::endl;
     std::cout<<"L*U:"<<std::endl<<L*U<<std::endl;
 }
 
@@ -71,8 +71,8 @@ void Test::testGivensQR()
 
 void Test::testHousholderQR()
 {
-//    Eigen::Matrix<float,3,3> A;
-//    A<<2,2,1,1,2,2,2,1,2;
+    //    Eigen::Matrix<float,3,3> A;
+    //    A<<2,2,1,1,2,2,2,1,2;
     Eigen::Matrix<float,5,5> A=Eigen::Matrix<float,5,5>::Random(5,5);
     A=A.transpose()*A+0.1*Eigen::Matrix<float,5,5>::Identity();
     std::cout<<"A:"<<std::endl<<A<<std::endl;
@@ -107,4 +107,13 @@ void Test::testQRInverse()
     Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic> O;
     Decomposition<float,A.Options>::QRInverse(A,O);
     std::cout<<"O:"<<std::endl<<O<<std::endl;
+}
+
+void Test::test3x3Inverse()
+{
+    Eigen::Matrix<float,3,3> A=Eigen::Matrix<float,3,3>::Random(3,3);
+    A=A.transpose()*A+0.1*Eigen::Matrix<float,3,3>::Identity();
+    std::cout<<"A:"<<std::endl<<A<<std::endl;
+    std::cout<<"A.inverse():"<<std::endl<<A.inverse()<<std::endl;
+    std::cout<<"A.inverse():"<<std::endl<<Decomposition<float,A.Options>::matrix3x3Inverse(A,Decomposition<float,A.Options>::matrix3x3Determinant(A))<<std::endl;
 }

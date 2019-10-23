@@ -11,6 +11,7 @@ public:
     enum QRType{Givens,HouseHolder};
     enum CholeskyType{CholeskyLLT,CholeskyLDLT};
     typedef Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, _Options> MatrixXXT;
+    typedef Eigen::Matrix<T, 3, 3, Eigen::RowMajor> Matrix3x3T;
     typedef Eigen::Matrix<T, Eigen::Dynamic, 1, _Options> VectorXT;
     static MatrixXXT Gauss(const MatrixXXT&A);
     static MatrixXXT EijMatrix(int n,int i,int j);
@@ -30,6 +31,8 @@ public:
     static void QRInverse(const MatrixXXT&A,MatrixXXT& O,QRType type=HouseHolder);
     static void CholeskyMulInverse(const MatrixXXT&A,MatrixXXT& O);
     static void lowerDiagonalTranposeMul(const MatrixXXT& U,MatrixXXT& O);
+    static T matrix3x3Determinant(const Matrix3x3T &A);
+    static Matrix3x3T matrix3x3Inverse(const Matrix3x3T &A,T det);
 };
 /**
  *————————————————
@@ -452,6 +455,33 @@ void Decomposition<T,_Options>::lowerDiagonalTranposeMul(const Decomposition::Ma
             O(i-1,j-1)=temp;
         }
     }
+}
+
+template<typename T, int _Options>
+T Decomposition<T,_Options>::matrix3x3Determinant(const Decomposition::Matrix3x3T &A)
+{
+    const T* m=A.data();
+    return m[0] * m[4] * m[8] + m[1] * m[5] * m[6] + m[2] * m[3] * m[7]
+             - m[2] * m[4] * m[6] - m[1] * m[3] * m[8] - m[0] * m[5] * m[7];
+}
+
+template<typename T, int _Options>
+typename Decomposition<T,_Options>::Matrix3x3T Decomposition<T,_Options>::matrix3x3Inverse(const Decomposition::Matrix3x3T &A, T det)
+{
+
+    Matrix3x3T O;
+    T* ret=O.data();
+    const T* m=A.data();
+    ret[0] = m[4] * m[8] - m[5] * m[7];
+    ret[1] = m[2] * m[7] - m[1] * m[8];
+    ret[2] = m[1] * m[5] - m[2] * m[4];
+    ret[3] = m[5] * m[6] - m[3] * m[8];
+    ret[4] = m[0] * m[8] - m[2] * m[6];
+    ret[5] = m[2] * m[3] - m[0] * m[5];
+    ret[6] = m[3] * m[7] - m[4] * m[6];
+    ret[7] = m[1] * m[6] - m[0] * m[7];
+    ret[8] = m[0] * m[4] - m[1] * m[3];
+    return O / det;
 }
 template<typename T, int _Options>
 void Decomposition<T,_Options>::LLT(const Decomposition::MatrixXXT &A, Decomposition::MatrixXXT &L)

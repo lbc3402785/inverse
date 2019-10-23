@@ -2,6 +2,6 @@
 #include "test.h"
 int main(int argc, char *argv[])
 {
-    Test::testCholeskyInverse();
+    Test::test3x3Inverse();
     return 0;
 }
