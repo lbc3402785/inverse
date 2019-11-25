@@ -14,6 +14,7 @@ public:
     typedef Eigen::Matrix<T, 3, 3, Eigen::RowMajor> Matrix3x3T;
     typedef Eigen::Matrix<T, Eigen::Dynamic, 1, _Options> VectorXT;
     static MatrixXXT Gauss(const MatrixXXT&A);
+    static MatrixXXT pseudoinverse(const MatrixXXT&A);
     static MatrixXXT EijMatrix(int n,int i,int j);
     static MatrixXXT RijMatrix(int n,int i,int j,T cos,T sin);
     static MatrixXXT RijInverseMatrix(int n,int i,int j,T cos,T sin);
@@ -112,6 +113,25 @@ typename Decomposition<T,_Options>::MatrixXXT Decomposition<T,_Options>::Gauss(c
     }
 //    std::cout<<i<<"--"<<std::endl<<B<<std::endl;
     return O;
+}
+
+template<typename T, int _Options>
+typename Decomposition<T,_Options>::MatrixXXT Decomposition<T,_Options>::pseudoinverse(const Decomposition<T,_Options>::MatrixXXT &A)
+{
+
+    auto svd = A.jacobiSvd(Eigen::ComputeFullU | Eigen::ComputeFullV);
+    const auto &singularValues = svd.singularValues();
+    Decomposition<T,_Options>::MatrixXXT singularValuesInv(A.cols(), A.rows());
+    singularValuesInv.setZero();
+    T  pinvtoler = 1.e-6; // choose your tolerance wisely
+    for (unsigned int i = 0; i < singularValues.size(); ++i) {
+        if (singularValues(i) > pinvtoler)
+            singularValuesInv(i, i) = 1.0f / singularValues(i);
+        else
+            singularValuesInv(i, i) = 0.f;
+    }
+    Decomposition<T,_Options>::MatrixXXT pinvmat = svd.matrixV() * singularValuesInv * svd.matrixU().transpose();
+    return pinvmat;
 }
 
 template<typename T, int _Options>

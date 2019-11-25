@@ -15,6 +15,10 @@ public:
     static void testCholeskyInverse();
     static void testQRInverse();
     static void test3x3Inverse();
+    static void testPseudoInverse();
+    static void testSolveMatrix();
+    static void testSolveGenesis2BFM();
+    static void testPseudoinverse();
 };
 
 #endif // TEST_H

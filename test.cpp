@@ -117,3 +117,53 @@ void Test::test3x3Inverse()
     std::cout<<"A.inverse():"<<std::endl<<A.inverse()<<std::endl;
     std::cout<<"A.inverse():"<<std::endl<<Decomposition<float,A.Options>::matrix3x3Inverse(A,Decomposition<float,A.Options>::matrix3x3Determinant(A))<<std::endl;
 }
+
+void Test::testPseudoInverse()
+{
+    Eigen::Vector3f x(1,2,3);
+    Eigen::Matrix<float,3,3> A=x*x.transpose();
+    std::cout<<"A:"<<std::endl<<A<<std::endl;
+    std::cout<<"pseudoInverse:"<<std::endl<<A.completeOrthogonalDecomposition().solve(A*x)<<std::endl;
+}
+
+void Test::testSolveMatrix()
+{
+    Eigen::Vector3f x(1,2,3);
+    Eigen::Matrix<float,3,3> A=x*x.transpose();
+    Eigen::Matrix<float,3,3> I=Eigen::Matrix<float,3,3>::Identity();
+    A+=I;
+    std::cout<<"A:"<<std::endl<<A<<std::endl;
+    Eigen::Vector3f x0(5,1,4);
+    Eigen::Vector3f x1(4,0,2);
+    Eigen::Vector3f x2(6,1,9);
+    Eigen::Matrix<float,3,3> B;
+    B.col(0)=A*x0;B.col(1)=A*x1;B.col(2)=A*x2;
+    std::cout<<"B:"<<std::endl<<B<<std::endl;
+    std::cout<<"C1:"<<std::endl<<A.colPivHouseholderQr().solve(B)<<std::endl;
+    std::cout<<"C2:"<<std::endl<<A.completeOrthogonalDecomposition().solve(B)<<std::endl;
+    Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic> O;
+    Decomposition<float,Eigen::ColMajor>::QRInverse(A,O);
+    std::cout<<"C3:"<<std::endl<<A.inverse()*B<<std::endl;
+    std::cout<<"C4:"<<std::endl<<O*B<<std::endl;
+//    std::cout<<"x0:"<<std::endl<<(A).inverse()*B.col(0)<<std::endl;
+//    std::cout<<"x1:"<<std::endl<<(A).inverse()*B.col(1)<<std::endl;
+    //    std::cout<<"x2:"<<std::endl<<(A).inverse()*B.col(2)<<std::endl;
+}
+
+void Test::testSolveGenesis2BFM()
+{
+    Eigen::Matrix<float,10,1> x=Eigen::Matrix<float,10,1>::Random();
+    std::cout<<"x:"<<std::endl<<x<<std::endl;
+    Eigen::Matrix<float,5,1> y=Eigen::Matrix<float,5,1>::Zero();
+    y(2,0)=1;
+    Eigen::Matrix<float,5,10> A=Eigen::Matrix<float,5,10>::Zero();
+}
+
+void Test::testPseudoinverse()
+{
+    Eigen::Matrix<float,3,3> A=Eigen::Matrix<float,3,3>::Random(3,3);
+    Eigen::Matrix<float,3,3> B=A*A.transpose();
+    std::cout<<"B:"<<std::endl<<B<<std::endl;
+    Eigen::Matrix<float,3,3> C=Decomposition<float,Eigen::ColMajor>::pseudoinverse(B);
+    std::cout<<"B*C*B:"<<std::endl<<B*C*B<<std::endl;
+}
