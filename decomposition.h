@@ -3,13 +3,14 @@
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <iostream>
+enum QRType{Givens,HouseHolder};
+enum CholeskyType{CholeskyLLT,CholeskyLDLT};
+enum LUType{Crout,Doolittle};
 template<typename T,int _Options=Eigen::RowMajor>
 class Decomposition
 {
 public:
     Decomposition();
-    enum QRType{Givens,HouseHolder};
-    enum CholeskyType{CholeskyLLT,CholeskyLDLT};
     typedef Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, _Options> MatrixXXT;
     typedef Eigen::Matrix<T, 3, 3, Eigen::RowMajor> Matrix3x3T;
     typedef Eigen::Matrix<T, Eigen::Dynamic, 1, _Options> VectorXT;
@@ -23,7 +24,7 @@ public:
     static void upperDiagonalInverse(const MatrixXXT&L,MatrixXXT&U);
     static void sqrtDiagonal(const MatrixXXT&L,MatrixXXT&O);
     static void invertDiagonal(const MatrixXXT&L,MatrixXXT&O);
-    static void LU(const MatrixXXT&A,MatrixXXT& L,MatrixXXT&U);
+    static bool LU(const MatrixXXT&A,MatrixXXT& L,MatrixXXT&U,LUType type=Crout);
     static void GivensQR(const MatrixXXT&A,MatrixXXT& Q,MatrixXXT&R);
     static void HousholderQR(const MatrixXXT&A,MatrixXXT& Q,MatrixXXT&R);
     static void LLT(const MatrixXXT&A,MatrixXXT& L);
@@ -284,7 +285,7 @@ void Decomposition<T,_Options>::invertDiagonal(const Decomposition::MatrixXXT &L
 }
 
 template<typename T, int _Options>
-void Decomposition<T,_Options>::LU(const MatrixXXT &A, MatrixXXT &L, MatrixXXT &U)
+bool Decomposition<T,_Options>::LU(const MatrixXXT &A, MatrixXXT &L, MatrixXXT &U,LUType type)
 {
     if(A.rows()!=A.cols()){
         throw std::invalid_argument("not a squared matrix");
@@ -295,24 +296,122 @@ void Decomposition<T,_Options>::LU(const MatrixXXT &A, MatrixXXT &L, MatrixXXT &
     if(U.rows()!=A.rows()||U.cols()!=A.cols()){
         U.resizeLike(A);
     }
-    L.setZero();
-    U.setIdentity();
-    int i,j,k;
-    int n=A.rows();
-    for(i=1;i<=n;i++){
-        for(j=1;j<=n;j++){
-            T temp=0;
+    if(type==Crout){
+        L.setZero();
+        U.setIdentity();
+        int i,j,k;
+        int n=A.rows();
+        for(i=1;i<=n;i++){
+            for(j=1;j<=n;j++){
+                T temp=0;
 
-            if(j<=i){
-                for(k=1;k<=j-1;k++){
-                    temp+=L(i-1,k-1)*U(k-1,j-1);
+                if(j<=i){
+                    for(k=1;k<=j-1;k++){
+                        temp+=L(i-1,k-1)*U(k-1,j-1);
+                    }
+                    L(i-1,j-1)=A(i-1,j-1)-temp;
+                }else{
+                    for(k=1;k<=i;k++){
+                        temp+=L(i-1,k-1)*U(k-1,j-1);
+                    }
+                    if(L(i-1,i-1)==0)return false;
+                    U(i-1,j-1)=(A(i-1,j-1)-temp)/L(i-1,i-1);
                 }
-                L(i-1,j-1)=A(i-1,j-1)-temp;
+            }
+        }
+    }else{
+        L.setIdentity();
+        U.setZero();
+        U.row(0)=A.row(0);
+        if(A(0,0)==0)return false;
+        L.col(0)=A.col(0)/A(0,0);
+        int k,j,r;
+        int n=A.rows();
+        for(k=1;k<n;k++){
+            for(j=k;j<n;j++){
+                T temp=0;
+                for(r=0;r<k;r++){
+                    temp+=L(k,r)*U(r,j);
+                }
+                U(k,j)=A(k,j)-temp;
+
+                if(j>k){
+                    temp=0;
+                    for(r=0;r<k;r++){
+                        temp+=L(j,r)*U(r,k);
+                    }
+                    L(j,k)=(A(j,k)-temp)/U(k,k);
+                }
+            }
+        }
+    }
+    return true;
+}
+
+template<typename T, int _Options>
+void Decomposition<T,_Options>::compatDoolittleLU(const Decomposition::MatrixXXT &A, Decomposition::MatrixXXT &L, Decomposition::MatrixXXT &U, Decomposition::MatrixXXT &P)
+{
+    if(A.rows()!=A.cols()){
+        throw std::invalid_argument("not a squared matrix");
+    }
+    if(L.rows()!=A.rows()||L.cols()!=A.cols()){
+        L.resizeLike(A);
+    }
+    if(U.rows()!=A.rows()||U.cols()!=A.cols()){
+        U.resizeLike(A);
+    }
+    if(P.rows()!=A.rows()||P.cols()!=A.cols()){
+        P.resizeLike(A);
+    }
+    MatrixXXT R=A;
+    P.setIdentity();
+    int n=A.rows();
+    for(int k=0;k<n;k++){
+        T sik=0;
+        std::vector<T> vs;
+        int ik=k;
+        for(int i=k;i<n;i++){
+            T temp=R(i,k);
+            for(int r=0;r<k;r++){
+                temp-=R(i,r)*R(r,k);
+            }
+            vs.push_back(temp);
+            if(std::fabs(sik)<temp){
+                sik=temp;
+                ik=i;
+            }
+        }
+        if(ik!=k){
+            T t;
+            for(int j=0;j<n;j++){
+                t=R(k,j);
+                R(k,j)=R(ik,j);
+                R(ik,j)=t;
+            }
+
+            t=vs[0];
+            vs[0]=sik;
+            vs[ik-k]=t;
+            P=EijMatrix(n,k+1,ik+1)*P;
+        }
+        R(k,k)=sik;
+        for(int j=k+1;j<n;j++){
+            for(int r=0;r<k;r++){
+                R(k,j)-=R(k,r)*R(r,j);
+            }
+        }
+        for(int i=k+1;i<n;i++){
+            R(i,k)=vs[i-k]/sik;
+        }
+    }
+    L.setIdentity();
+    U.setZero();
+    for(int i=0;i<n;i++){
+        for(int j=0;j<n;j++){
+            if(j<i){
+                L(i,j)=R(i,j);
             }else{
-                for(k=1;k<=i;k++){
-                    temp+=L(i-1,k-1)*U(k-1,j-1);
-                }
-                U(i-1,j-1)=(A(i-1,j-1)-temp)/L(i-1,i-1);
+                U(i,j)=R(i,j);
             }
         }
     }
