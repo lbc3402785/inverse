@@ -27,14 +27,32 @@ void Test::testLU()
     //    std::cout<<"L:"<<std::endl<<L<<std::endl;
     //    std::cout<<"U:"<<std::endl<<U<<std::endl;
     Eigen::Matrix<float,3,3> A=Eigen::Matrix<float,3,3>::Random(3,3);
-    A=A.transpose()*A+0.1*Eigen::Matrix<float,3,3>::Identity();
+        A=A.transpose()*A+0.1*Eigen::Matrix<float,3,3>::Identity();
+
     std::cout<<"A:"<<std::endl<<A<<std::endl;
     Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic> L;//=Eigen::Matrix<float,3,3>::Zero(3,3);
     Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic> U;//=Eigen::Matrix<float,3,3>::Zero(3,3);
-    Decomposition<float,A.Options>::LU(A,L,U);
-    //    std::cout<<"L:"<<std::endl<<L<<std::endl;
-    //    std::cout<<"U:"<<std::endl<<U<<std::endl;
+    Decomposition<float,A.Options>::LU(A,L,U,LUType::Doolittle);
+    std::cout<<"L:"<<std::endl<<L<<std::endl;
+    std::cout<<"U:"<<std::endl<<U<<std::endl;
     std::cout<<"L*U:"<<std::endl<<L*U<<std::endl;
+}
+
+void Test::testCompactLU()
+{
+    Eigen::Matrix<float,5,5> A;
+    Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic> L;
+    Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic> U;
+    Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic> P;
+//    A<<1,2,3,3,1,5,2,5,2;
+     A=Eigen::Matrix<float,5,5>::Random(5,5);
+        A=A.transpose()*A+0.1*Eigen::Matrix<float,5,5>::Identity();
+
+    Decomposition<float,A.Options>::compatDoolittleLU(A,L,U,P);
+    std::cout<<"L:"<<std::endl<<L<<std::endl;
+    std::cout<<"U:"<<std::endl<<U<<std::endl;
+    std::cout<<"L*U:"<<std::endl<<L*U<<std::endl;
+    std::cout<<"P*A:"<<std::endl<<P*A<<std::endl;
 }
 
 void Test::testEij()
