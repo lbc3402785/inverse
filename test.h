@@ -8,6 +8,7 @@ public:
     Test();
     static void testGauss();
     static void testLU();
+    static void testCompactLU();
     static void testEij();
     static void testCholesky();
     static void testGivensQR();
