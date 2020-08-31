@@ -24,7 +24,9 @@ public:
     static void upperDiagonalInverse(const MatrixXXT&L,MatrixXXT&U);
     static void sqrtDiagonal(const MatrixXXT&L,MatrixXXT&O);
     static void invertDiagonal(const MatrixXXT&L,MatrixXXT&O);
+    static bool TridiagonalLU(const MatrixXXT&A,MatrixXXT& L,MatrixXXT&U);
     static bool LU(const MatrixXXT&A,MatrixXXT& L,MatrixXXT&U,LUType type=Crout);
+    static void compatDoolittleLU(const MatrixXXT&A,MatrixXXT& L,MatrixXXT&U,MatrixXXT&P);
     static void GivensQR(const MatrixXXT&A,MatrixXXT& Q,MatrixXXT&R);
     static void HousholderQR(const MatrixXXT&A,MatrixXXT& Q,MatrixXXT&R);
     static void LLT(const MatrixXXT&A,MatrixXXT& L);
@@ -283,6 +285,8 @@ void Decomposition<T,_Options>::invertDiagonal(const Decomposition::MatrixXXT &L
         O(i-1,i-1)=1/L(i-1,i-1);
     }
 }
+
+
 
 template<typename T, int _Options>
 bool Decomposition<T,_Options>::LU(const MatrixXXT &A, MatrixXXT &L, MatrixXXT &U,LUType type)
